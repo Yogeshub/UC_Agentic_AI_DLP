@@ -1,0 +1,13 @@
+streamlit
+openai
+langchain
+tiktoken
+pandas
+#sqlite3
+requests
+langchain_groq
+langgraph
+httpx
+python-dotenv
+win32com
+langchain_core
