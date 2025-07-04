@@ -167,13 +167,20 @@ from db_utils import (
     get_pending_emails,
     get_manager_email,
     update_status,
-    is_older_than_24hrs
+    is_older_than_24hrs,
 )
+from doc_checker import classify_document
+
 
 load_dotenv()
+
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 CHAT_MODEL = os.getenv("CHAT_MODEL")
+
+
 http_client = httpx.Client(verify=False)
+
 
 # ------------------------------
 # Tools with print logs
@@ -186,15 +193,46 @@ def check_similarity(details):
     print("[Tool] NEW")
     return "NEW"
 
+
+# def check_sensitivity(details, attachment=None):
+#     """Detect sensitive content. Return True/False."""
+#     print(f"[Tool] check_sensitivity called: {details[:30]}")
+#     sensitive_words = ["confidential", "secret", "salary"]
+#     if any(w in details.lower() for w in sensitive_words):
+#         print("[Tool] SENSITIVE")
+#         return True
+#     print("[Tool] Not Sensitive")
+#     return False
 def check_sensitivity(details, attachment=None):
-    """Detect sensitive content. Return True/False."""
+    """
+    Detect sensitive content in text and optional attachment.
+    Return True if sensitive info is found.
+    """
     print(f"[Tool] check_sensitivity called: {details[:30]}")
+
+    # 1️⃣ Text check
     sensitive_words = ["confidential", "secret", "salary"]
-    if any(w in details.lower() for w in sensitive_words):
-        print("[Tool] SENSITIVE")
+    text_sensitive = any(w in details.lower() for w in sensitive_words)
+
+    # 2️⃣ Attachment check
+    file_sensitive = False
+    if attachment:
+        try:
+            print(f"[Tool] Checking attachment: {attachment}")
+            result = classify_document(attachment)
+            file_sensitive = result["sensitive"]
+            print(f"[Tool] Attachment classified as sensitive: {file_sensitive}")
+        except Exception as e:
+            print(f"[Tool] Error reading attachment: {e}")
+
+    # 3️⃣ Final verdict
+    if text_sensitive or file_sensitive:
+        print("[Tool] Result: SENSITIVE")
         return True
-    print("[Tool] Not Sensitive")
+
+    print("[Tool] Result: Not Sensitive")
     return False
+
 
 def mark_status(email_id, status):
     """Update status of a mail in DB."""
@@ -202,10 +240,12 @@ def mark_status(email_id, status):
     update_status(email_id, status)
     return f"Updated {email_id} to {status}"
 
+
 def send_escalation_email(employee, manager_manager_email, request_id):
     """Send escalation email."""
     print(f"[Tool] Escalating request {request_id} to {manager_manager_email}")
     return f"Escalated to {manager_manager_email}"
+
 
 tools = [
     StructuredTool.from_function(check_similarity),
@@ -228,7 +268,6 @@ For each request:
   - If sensitive → do nothing.
 - If request older than 24hrs → call `send_escalation_email`.
 
-Always use tools. Do not output final answers without using tools.
 """
 )
 
@@ -237,11 +276,13 @@ Always use tools. Do not output final answers without using tools.
 llm = ChatGroq(groq_api_key=GROQ_API_KEY, model=CHAT_MODEL, http_client=http_client)
 llm_with_tools = llm.bind_tools(tools, parallel_tool_calls=False)
 
+
 # ------------------------------
 # Assistant Node
 def assistant(state: MessagesState):
     result = llm_with_tools.invoke([sys_msg] + state["messages"])
     return {"messages": [result]}
+
 
 # ------------------------------
 # Create graph
@@ -253,6 +294,7 @@ builder.add_conditional_edges("assistant", tools_condition)
 builder.add_edge("tools", "assistant")
 graph = builder.compile()
 
+
 # ------------------------------
 # Run
 def run_agentic_ai():
@@ -261,13 +303,19 @@ def run_agentic_ai():
         id, employee, dt, typ, details, dest, status, comment, attachment = r
         if is_older_than_24hrs(dt):
             _, manager_manager = get_manager_email(employee)
-            user_msg = f"Escalate request ID {id} to manager's manager {manager_manager}."
+            user_msg = (
+                f"Escalate request ID {id} to manager's manager {manager_manager}."
+            )
         else:
             user_msg = f"Process request ID {id}: Check similarity, then sensitivity. Details: {details[:50]}..."
         print(f"[Main] Sending: {user_msg}")
 
-        result = graph.invoke({"messages": [{"role": "user", "content": user_msg}]})
+        result = graph.invoke(
+            {"messages": [{"role": "user", "content": user_msg}]},
+            config={"recursion_limit": 5},
+        )
         print(f"[Main] Result: {result}")
+
 
 if __name__ == "__main__":
     run_agentic_ai()

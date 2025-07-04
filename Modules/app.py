@@ -5,7 +5,9 @@ from agentic_ai import create_graph
 st.title("📧 Groq Agentic DLP Demo")
 
 if st.button("Insert Dummy"):
-    insert_email("vendor@abc.com", "external@xyz.com", "Specs", "Contains client salary info.")
+    insert_email(
+        "vendor@abc.com", "external@xyz.com", "Specs", "Contains client salary info."
+    )
     st.success("Inserted.")
 
 graph = create_graph()

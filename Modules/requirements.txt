@@ -11,3 +11,6 @@ httpx
 python-dotenv
 win32com
 langchain_core
+docx
+PyPDF2
+crewai

@@ -1,17 +1,15 @@
 import streamlit as st
 from emp_db_ops import DatabaseManager
 
+
 def show_employee_management():
     db = DatabaseManager()
 
     st.title("👥 Employee Management Portal")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "➕ Add Relationship",
-        "📋 View All",
-        "✏️ Update",
-        "🗑️ Delete"
-    ])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["➕ Add Relationship", "📋 View All", "✏️ Update", "🗑️ Delete"]
+    )
 
     # ➕ Add Relationship
     with tab1:
@@ -39,10 +37,10 @@ def show_employee_management():
                 employees,
                 column_config={
                     "employee_email": "Employee Email",
-                    "manager_email": "Manager Email"
+                    "manager_email": "Manager Email",
                 },
                 use_container_width=True,
-                hide_index=True
+                hide_index=True,
             )
         else:
             st.info("No employee relationships found in database")
@@ -54,22 +52,21 @@ def show_employee_management():
 
         if employees:
             employee_emails = [e["employee_email"] for e in employees]
-            selected_emp = st.selectbox(
-                "Select Employee",
-                employee_emails,
-                index=None
-            )
+            selected_emp = st.selectbox("Select Employee", employee_emails, index=None)
 
             if selected_emp:
                 current_manager = next(
-                    (e["manager_email"] for e in employees if e["employee_email"] == selected_emp),
-                    ""
+                    (
+                        e["manager_email"]
+                        for e in employees
+                        if e["employee_email"] == selected_emp
+                    ),
+                    "",
                 )
 
                 with st.form("update_form"):
                     new_manager = st.text_input(
-                        "New Manager Email",
-                        value=current_manager
+                        "New Manager Email", value=current_manager
                     )
 
                     if st.form_submit_button("Update Relationship"):
@@ -89,9 +86,7 @@ def show_employee_management():
         if employees:
             employee_emails = [e["employee_email"] for e in employees]
             selected_emp = st.selectbox(
-                "Select Employee to Remove",
-                employee_emails,
-                index=None
+                "Select Employee to Remove", employee_emails, index=None
             )
 
             if selected_emp:

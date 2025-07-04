@@ -13,7 +13,8 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Requests table (your existing structure)
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS requests (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     employee TEXT NOT NULL,
@@ -24,15 +25,18 @@ class DatabaseManager:
                     status TEXT NOT NULL,
                     comment TEXT
                 )
-            """)
+            """
+            )
 
             # Employees table (new structure)
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS employees (
                     employee_email TEXT PRIMARY KEY,
                     manager_email TEXT
                 )
-            """)
+            """
+            )
             conn.commit()
 
     # ----- Requests Operations (Your existing functionality) -----
@@ -40,20 +44,26 @@ class DatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, employee, datetime, type, details, destination 
                 FROM requests WHERE status = ?
-            """, (status,))
+            """,
+                (status,),
+            )
             return [dict(row) for row in cursor.fetchall()]
 
     def update_request(self, request_id: int, status: str, comment: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE requests 
                 SET status = ?, comment = ? 
                 WHERE id = ?
-            """, (status, comment, request_id))
+            """,
+                (status, comment, request_id),
+            )
             conn.commit()
             return cursor.rowcount > 0
 
@@ -62,9 +72,12 @@ class DatabaseManager:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO employees VALUES (?, ?)
-                """, (employee_email, manager_email))
+                """,
+                    (employee_email, manager_email),
+                )
                 conn.commit()
             return True
         except sqlite3.IntegrityError:
@@ -80,20 +93,26 @@ class DatabaseManager:
     def update_employee(self, employee_email: str, new_manager_email: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE employees 
                 SET manager_email = ? 
                 WHERE employee_email = ?
-            """, (new_manager_email, employee_email))
+            """,
+                (new_manager_email, employee_email),
+            )
             conn.commit()
             return cursor.rowcount > 0
 
     def delete_employee(self, employee_email: str) -> bool:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM employees 
                 WHERE employee_email = ?
-            """, (employee_email,))
+            """,
+                (employee_email,),
+            )
             conn.commit()
             return cursor.rowcount > 0
