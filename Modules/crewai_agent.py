@@ -152,7 +152,7 @@ class SensitivityTool(BaseTool):
         print(f"[Tool] Running SensitivityTool")
         sensitive_keywords = ["confidential", "secret", "salary", "ssn", "passport",
         "credit card", "bank account", "private", "restricted", "internal use only",
-        "proprietary", "classified", "do not distribute", "personal data", "medical record"]
+        "proprietary", "classified", "do not distribute", "personal data", "Account Number"]
         if any(word in details.lower() for word in sensitive_keywords):
             print("[Tool] Sensitive content found in text.")
             return True
@@ -201,7 +201,13 @@ class EscalateTool(BaseTool):
             mail = outlook.CreateItem(0)
             mail.To = manager_email
             mail.Subject = f"DLP Escalation: Request {request_id}"
-            mail.Body = f"Request {request_id} from employee {employee} requires manual review."
+            mail.Body = (
+                f"Dear Manager,\n\n"
+                f"Request {request_id} from employee {employee} requires manual review.\n\n"
+                "Please approve or reject this request using the DLP Streamlit dashboard:\n"
+                "http://localhost:8501\n\n"
+                "Regards,\nDLP Automation Agent"
+            )
             mail.Send()
             update_status(request_id, "Escalated", "Escalation sent to manager")
             print("[Tool] Escalation email sent successfully.")

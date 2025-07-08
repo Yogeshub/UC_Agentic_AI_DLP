@@ -1,320 +1,233 @@
-# import sqlite3, time, os, httpx
-# from datetime import datetime, timedelta
-# from langchain_groq import ChatGroq
-# from langchain_core.prompts import ChatPromptTemplate
-# from dotenv import load_dotenv
-# from langchain.tools import StructuredTool
-# from langchain.agents import AgentExecutor, create_openai_functions_agent
-# from langchain_core.prompts import ChatPromptTemplate
-# from langchain import hub
-# import os
-# import re
-#
-# load_dotenv()
-#
-# GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-# CHAT_MODEL = os.getenv("CHAT_MODEL")
-#
-# DB = "database.db"
-#
-# http_client = httpx.Client(verify=False)
-#
-# from db_utils import (
-#     get_pending_emails,
-#     get_manager_email,
-#     update_status,
-#     is_older_than_24hrs
-# )
-#
-# import smtplib
-#
-# # ------------------------------
-# # Example similarity checker (placeholder)
-# def check_similarity(details):
-#     """
-#     Check if the email details match previous emails to detect duplicates.
-#     Returns 'DUPLICATE' if similar, else 'NEW'.
-#     """
-#     print(f"[Tool] check_similarity called with: {details}")
-#     if "repeat" in details.lower():
-#         print("[Tool] Marked as DUPLICATE")
-#         return "DUPLICATE"
-#     print("[Tool] Marked as NEW")
-#     return "NEW"
-#
-# # ------------------------------
-# # Example sensitivity checker (placeholder)
-# def check_sensitivity(details, attachment=None):
-#     """
-#     Check if the email content or attachment contains sensitive information.
-#     Returns True if sensitive content is found, else False.
-#     """
-#     print(f"[Tool] check_sensitivity called with: {details} and attachment: {attachment}")
-#     sensitive_words = ["confidential", "secret", "salary"]
-#     if any(word in details.lower() for word in sensitive_words):
-#         print("[Tool] Found sensitive content!")
-#         return True
-#     print("[Tool] Not sensitive")
-#     return False
-#
-# def mark_status(email_id, status):
-#     """Update the status of the email in DB."""
-#     print(f"[Tool] Updating status for ID {email_id} to {status}")
-#     update_status(email_id, status)
-#     return f"Status updated to {status}"
-#
-# # ------------------------------
-# # Escalation mailer
-# def send_escalation_email(employee, manager_manager_email, request_id):
-#     """
-#     Send an escalation email to the manager's manager if a request is pending over 24 hrs.
-#     """
-#     subject = f"[ESCALATION] Approval pending for request {request_id}"
-#     body = f"The request ID {request_id} from {employee} is pending over 24 hrs. Please review urgently."
-#     print(f"Escalation Email → To: {manager_manager_email}\nSubject: {subject}\nBody: {body}\n")
-#     # Here you’d connect real SMTP
-#     return f"Escalation mail sent to {manager_manager_email}"
-#
-# # ------------------------------
-# # Tool Wrappers
-# tools = [
-#     StructuredTool.from_function(check_similarity),
-#     StructuredTool.from_function(check_sensitivity),
-#     StructuredTool.from_function(mark_status),
-#     StructuredTool.from_function(send_escalation_email),
-# ]
-#
-# system_instructions = """
-# You are a DLP Automation Agent. You MUST always use the tools.
-#
-# For every request:
-# - First call `check_similarity` on the email details.
-# - If result is DUPLICATE: call `mark_status` with 'Auto Approved'.
-# - If result is NEW: call `check_sensitivity` on details.
-#   - If NOT sensitive: call `mark_status` with 'Auto Approved'.
-#   - If sensitive: DO NOTHING. Manager will review.
-# - If the request is older than 24 hrs: always call `send_escalation_email` to escalate.
-#
-# Always explain each step and use the tools!
-# """
-#
-# # ------------------------------
-# # Agent
-# llm = ChatGroq(groq_api_key=GROQ_API_KEY, model=CHAT_MODEL,http_client=http_client)
-# prompt = ChatPromptTemplate.from_messages([
-#     ("system", system_instructions),
-#     ("human", "{input}\n{agent_scratchpad}")
-# ])
-# agent = create_openai_functions_agent(llm, tools, prompt)
-# agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-#
-# # ------------------------------
-# # Orchestration Loop
-# # def run_agentic_ai():
-# #     requests = get_pending_emails()
-# #     print(f"[Main] Found {len(requests)} requests: {requests}")
-# #     for r in requests:
-# #         id, employee, dt, typ, details, dest, status, comment, attachment = r
-# #         if is_older_than_24hrs(dt):
-# #             _, manager_manager = get_manager_email(employee)
-# #             input_txt = f"This request ID {id} is older than 24 hrs. Escalate to manager's manager {manager_manager}."
-# #             print(f"[Main] Invoking escalation for: {input_txt}")
-# #             result = agent_executor.invoke({"input": input_txt})
-# #             print(f"[Main] Result: {result}")
-# #         else:
-# #             input_txt = f"Check request ID {id} for similarity and sensitivity. Details: {details}. Attachment: {attachment if attachment else 'None'}"
-# #             print(f"[Main] Invoking checks for: {input_txt}")
-# #             result = agent_executor.invoke({"input": input_txt})
-# #             print(f"[Main] Result: {result}")
-#
-# def run_agentic_ai():
-#     requests = get_pending_emails()
-#     print(f"[Main] Found {len(requests)} requests.")
-#     for r in requests:
-#         id, employee, dt, typ, details, dest, status, comment, attachment = r
-#
-#         if is_older_than_24hrs(dt):
-#             _, manager_manager = get_manager_email(employee)
-#             input_txt = f"""
-# This request ID {id} is older than 24 hrs.
-# Escalate to manager's manager: {manager_manager}.
-# """
-#         else:
-#             input_txt = f"""
-# Check request ID {id}.
-# Details: {details}
-# Attachment: {attachment if attachment else 'None'}
-# """
-#
-#         print(f"[Main] Sending to agent:\n{input_txt}")
-#         result = agent_executor.invoke({"input": input_txt})
-#         print(f"[Main] Agent result: {result}")
-#
-#
-# if __name__ == "__main__":
-#     run_agentic_ai()
-
-### Langraph version of AI Agent
-
-import os, httpx
+import os
+import httpx
+import win32com.client
 from dotenv import load_dotenv
+from typing import Dict, Optional, Any
+from pydantic import BaseModel, Field
+
+from crewai import Agent, Task, Crew, Process
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage
-from langgraph.graph import StateGraph, START, MessagesState
-from langgraph.prebuilt import tools_condition, ToolNode
-from langchain.tools import StructuredTool
-from db_utils import (
-    get_pending_emails,
-    get_manager_email,
-    update_status,
-    is_older_than_24hrs,
-)
-from doc_checker import classify_document
+from langchain.tools import BaseTool
 
-
+# Load environment variables
 load_dotenv()
-
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-CHAT_MODEL = os.getenv("CHAT_MODEL")
-
-
+CHAT_MODEL = os.getenv("CHAT_MODEL", "mixtral-8x7b-32768")
 http_client = httpx.Client(verify=False)
 
+# ------------------------------ Tool Input Schemas and Implementations
 
-# ------------------------------
-# Tools with print logs
-def check_similarity(details):
-    """Detect duplicate mails. Return DUPLICATE or NEW."""
-    print(f"[Tool] check_similarity called: {details[:30]}")
-    if "repeat" in details.lower():
-        print("[Tool] DUPLICATE")
-        return "DUPLICATE"
-    print("[Tool] NEW")
-    return "NEW"
+class SimilarityInput(BaseModel):
+    details: str = Field(..., description="Email content to check")
+    request_id: int = Field(..., description="Request ID")
+
+class SimilarityTool(BaseTool):
+    name = "check_similarity"
+    description = "Check if email is duplicate. Returns 'DUPLICATE' or 'NEW'."
+    args_schema = SimilarityInput
+
+    def _run(self, details: str, request_id: int) -> str:
+        from db_utils import find_duplicate_request, update_status, save_to_memory
+        if find_duplicate_request(details):
+            update_status(request_id, "Auto Approved")
+            save_to_memory(details)
+            return "DUPLICATE"
+        return "NEW"
 
 
-# def check_sensitivity(details, attachment=None):
-#     """Detect sensitive content. Return True/False."""
-#     print(f"[Tool] check_sensitivity called: {details[:30]}")
-#     sensitive_words = ["confidential", "secret", "salary"]
-#     if any(w in details.lower() for w in sensitive_words):
-#         print("[Tool] SENSITIVE")
-#         return True
-#     print("[Tool] Not Sensitive")
-#     return False
-def check_sensitivity(details, attachment=None):
-    """
-    Detect sensitive content in text and optional attachment.
-    Return True if sensitive info is found.
-    """
-    print(f"[Tool] check_sensitivity called: {details[:30]}")
+class SensitivityInput(BaseModel):
+    details: str = Field(..., description="Email content to check")
+    attachment: Optional[str] = Field(None, description="Attachment file path")
 
-    # 1️⃣ Text check
-    sensitive_words = ["confidential", "secret", "salary"]
-    text_sensitive = any(w in details.lower() for w in sensitive_words)
+class SensitivityTool(BaseTool):
+    name = "check_sensitivity"
+    description = "Check for sensitive content. Returns True if sensitive, False otherwise."
+    args_schema = SensitivityInput
 
-    # 2️⃣ Attachment check
-    file_sensitive = False
-    if attachment:
+    def _run(self, details: str, attachment: Optional[str] = None) -> bool:
+        from doc_checker import classify_document
+        sensitive_words = ["confidential", "secret", "salary", "ssn", "passport"]
+        text_sensitive = any(w in details.lower() for w in sensitive_words)
+        file_sensitive = False
+        if attachment:
+            try:
+                result = classify_document(attachment)
+                file_sensitive = result.get("sensitive", False)
+            except Exception:
+                file_sensitive = True  # Assume sensitive if error reading attachment
+        return text_sensitive or file_sensitive
+
+
+class StatusInput(BaseModel):
+    request_id: int = Field(..., description="Request ID")
+    status: str = Field(..., description="New status to set")
+    comments: Optional[str] = Field(None, description="Optional comments")
+
+class StatusTool(BaseTool):
+    name = "mark_status"
+    description = "Update request status and comments in database."
+    args_schema = StatusInput
+
+    def _run(self, request_id: int, status: str, comments: Optional[str] = None) -> str:
+        from db_utils import update_status
+        update_status(request_id, status)
+        # Assuming you have a function to update comments if needed; else skip
+        if comments:
+            from db_utils import update_comments
+            update_comments(request_id, comments)
+        return f"Status updated to {status}"
+
+
+class EscalationInput(BaseModel):
+    employee: str = Field(..., description="Employee name")
+    manager_email: str = Field(..., description="Manager's email")
+    request_id: int = Field(..., description="Request ID")
+
+class EscalationTool(BaseTool):
+    name = "send_escalation_email"
+    description = "Send escalation email via Outlook."
+    args_schema = EscalationInput
+
+    def _run(self, employee: str, manager_email: str, request_id: int) -> str:
         try:
-            print(f"[Tool] Checking attachment: {attachment}")
-            result = classify_document(attachment)
-            file_sensitive = result["sensitive"]
-            print(f"[Tool] Attachment classified as sensitive: {file_sensitive}")
+            outlook = win32com.client.Dispatch("Outlook.Application")
+            mail = outlook.CreateItem(0)
+            mail.To = manager_email
+            mail.Subject = f"DLP Escalation: Request {request_id}"
+            mail.Body = f"Request {request_id} from employee {employee} requires manual review."
+            mail.Send()
+            return "Escalation email sent successfully"
         except Exception as e:
-            print(f"[Tool] Error reading attachment: {e}")
-
-    # 3️⃣ Final verdict
-    if text_sensitive or file_sensitive:
-        print("[Tool] Result: SENSITIVE")
-        return True
-
-    print("[Tool] Result: Not Sensitive")
-    return False
+            return f"Escalation failed: {str(e)}"
 
 
-def mark_status(email_id, status):
-    """Update status of a mail in DB."""
-    print(f"[Tool] Updating ID {email_id} to {status}")
-    update_status(email_id, status)
-    return f"Updated {email_id} to {status}"
+# ------------------------------ Agent Creation
+
+def create_agents():
+    llm = ChatGroq(
+        temperature=0,
+        model_name=CHAT_MODEL,
+        groq_api_key=GROQ_API_KEY,
+        http_client=http_client
+    )
+
+    def make_tool(tool_instance: BaseTool) -> dict:
+        return {
+            "name": tool_instance.name,
+            "func": tool_instance._run,
+            "description": tool_instance.description
+        }
+
+    similarity_tool = SimilarityTool()
+    sensitivity_tool = SensitivityTool()
+    status_tool = StatusTool()
+    escalation_tool = EscalationTool()
+
+    duplicate_checker = Agent(
+        role="Duplicate Email Detector",
+        goal="Identify duplicate requests",
+        backstory="Detects if a request is a duplicate of approved requests",
+        tools=[make_tool(similarity_tool)],
+        llm=llm,
+        verbose=True
+    )
+
+    sensitivity_analyzer = Agent(
+        role="Content Sensitivity Analyzer",
+        goal="Detect sensitive content in emails",
+        backstory="Checks email body and attachments for sensitive info",
+        tools=[make_tool(sensitivity_tool)],
+        llm=llm,
+        verbose=True
+    )
+
+    approval_manager = Agent(
+        role="DLP Approval Manager",
+        goal="Approve safe requests or escalate sensitive ones",
+        backstory="Handles approval and escalation workflows",
+        tools=[make_tool(status_tool), make_tool(escalation_tool)],
+        llm=llm,
+        verbose=True
+    )
+
+    return duplicate_checker, sensitivity_analyzer, approval_manager
 
 
-def send_escalation_email(employee, manager_manager_email, request_id):
-    """Send escalation email."""
-    print(f"[Tool] Escalating request {request_id} to {manager_manager_email}")
-    return f"Escalated to {manager_manager_email}"
+# ------------------------------ Task Creation
 
+def create_tasks(request: Dict[str, Any], agents: tuple):
+    duplicate_checker, sensitivity_analyzer, approval_manager = agents
 
-tools = [
-    StructuredTool.from_function(check_similarity),
-    StructuredTool.from_function(check_sensitivity),
-    StructuredTool.from_function(mark_status),
-    StructuredTool.from_function(send_escalation_email),
-]
-
-# ------------------------------
-# System instructions
-sys_msg = SystemMessage(
-    content="""
-You are a DLP Automation Agent. You MUST always use tools.
-
-For each request:
-- Call `check_similarity` first.
-- If DUPLICATE → call `mark_status` with 'Auto Approved'.
-- If NEW → call `check_sensitivity`.
-  - If NOT sensitive → call `mark_status` with 'Auto Approved'.
-  - If sensitive → do nothing.
-- If request older than 24hrs → call `send_escalation_email`.
-
-"""
-)
-
-# ------------------------------
-# LLM with tools bound
-llm = ChatGroq(groq_api_key=GROQ_API_KEY, model=CHAT_MODEL, http_client=http_client)
-llm_with_tools = llm.bind_tools(tools, parallel_tool_calls=False)
-
-
-# ------------------------------
-# Assistant Node
-def assistant(state: MessagesState):
-    result = llm_with_tools.invoke([sys_msg] + state["messages"])
-    return {"messages": [result]}
-
-
-# ------------------------------
-# Create graph
-builder = StateGraph(MessagesState)
-builder.add_node("assistant", assistant)
-builder.add_node("tools", ToolNode(tools))
-builder.add_edge(START, "assistant")
-builder.add_conditional_edges("assistant", tools_condition)
-builder.add_edge("tools", "assistant")
-graph = builder.compile()
-
-
-# ------------------------------
-# Run
-def run_agentic_ai():
-    requests = get_pending_emails()
-    for r in requests:
-        id, employee, dt, typ, details, dest, status, comment, attachment = r
-        if is_older_than_24hrs(dt):
-            _, manager_manager = get_manager_email(employee)
-            user_msg = (
-                f"Escalate request ID {id} to manager's manager {manager_manager}."
-            )
-        else:
-            user_msg = f"Process request ID {id}: Check similarity, then sensitivity. Details: {details[:50]}..."
-        print(f"[Main] Sending: {user_msg}")
-
-        result = graph.invoke(
-            {"messages": [{"role": "user", "content": user_msg}]},
-            config={"recursion_limit": 5},
+    tasks = [
+        Task(
+            description=f"Check if request ID {request['id']} is a duplicate",
+            agent=duplicate_checker,
+            expected_output="DUPLICATE or NEW",
+            context=request
+        ),
+        Task(
+            description=f"Analyze request ID {request['id']} for sensitive content",
+            agent=sensitivity_analyzer,
+            expected_output="True if sensitive, False otherwise",
+            context=request
+        ),
+        Task(
+            description=f"Approve or escalate request ID {request['id']}",
+            agent=approval_manager,
+            expected_output="Confirmation of approval or escalation",
+            context=request
         )
-        print(f"[Main] Result: {result}")
+    ]
+    return tasks
+
+
+# ------------------------------ Main Processing Logic
+
+def process_request(request: Dict[str, Any]):
+    from db_utils import get_manager_email, update_status
+
+    agents = create_agents()
+    tasks = create_tasks(request, agents)
+    crew = Crew(
+        agents=list(agents),
+        tasks=tasks,
+        process=Process.sequential,
+        verbose=2
+    )
+    result = crew.kickoff()
+    print(f"Processed request {request['id']}: {result}")
+
+    # After tasks run, check if manual review is needed
+    # If yes, get manager email and send escalation
+    # This can be part of approval_manager tool or handled here as needed
+
+
+def run_agentic_ai():
+    print("Starting DLP Agent...")
+    from db_utils import get_pending_emails, update_status, get_manager_email
+
+    pending_requests = get_pending_emails()
+    if not pending_requests:
+        print("No pending requests found.")
+        return
+
+    print(f"Found {len(pending_requests)} requests to process")
+
+    for req in pending_requests:
+        try:
+            request = {
+                "id": req[0],
+                "employee": req[1],
+                "datetime": req[2],
+                "type": req[3],
+                "details": req[4],
+                "destination": req[5],
+                "attachment": req[8] if len(req) > 8 else None
+            }
+            process_request(request)
+        except Exception as e:
+            print(f"[Error] Failed processing request {req[0]}: {str(e)}")
+            update_status(req[0], "Error in processing")
 
 
 if __name__ == "__main__":

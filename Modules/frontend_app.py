@@ -78,6 +78,7 @@ with top_col1:
 
 tab1, tab2, tab3 = st.tabs(["📌 Pending", "✅ Responded", "🤖 Auto Approved"])
 
+
 # Custom CSS for consistent row height and styling
 st.markdown("""
 <style>
@@ -118,7 +119,7 @@ with tab1:
     if review_requests:
         # Table header with adjusted column widths
         cols = st.columns([0.8, 1.8, 1.8, 0.8, 2.5, 1.8, 0.8, 1.2])
-        headers = ["ID", "Employee", "Date/Time", "Type", "Details", "Destination", "Status", "Actions"]
+        headers = ["Request ID", "Employee", "Date/Time", "Type", "Details", "Customer Email", "Status", "Actions"]
 
         for col, header in zip(cols, headers):
             col.write(f"**{header}**")
@@ -167,22 +168,6 @@ with tab1:
         st.info("✅ No requests needing review")
 
 
-# ... (rest of the code remains same)
-
-# Add this new helper function
-def get_requests_by_statuses(statuses):
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    placeholders = ','.join(['?'] * len(statuses))
-    c.execute(
-        f"SELECT id, employee, datetime, type, details, destination, status FROM requests WHERE status IN ({placeholders})",
-        statuses
-    )
-    rows = c.fetchall()
-    conn.close()
-    return rows
-
-#
 # ---------- Approved Tab ----------
 with tab2:
     st.subheader("Responded Requests")
@@ -190,12 +175,12 @@ with tab2:
     if responded:
         st.dataframe(
             {
-                "ID": [r[0] for r in responded],
+                "Request ID": [r[0] for r in responded],
                 "Employee": [r[1] for r in responded],
                 "DateTime": [r[2] for r in responded],
                 "Type": [r[3] for r in responded],
                 "Details": [r[4] for r in responded],
-                "Destination": [r[5] for r in responded],
+                "Customer Email": [r[5] for r in responded],
             }
         )
     else:
@@ -208,12 +193,12 @@ with tab3:
     if auto:
         st.dataframe(
             {
-                "ID": [r[0] for r in auto],
+                "Request ID": [r[0] for r in auto],
                 "Employee": [r[1] for r in auto],
                 "DateTime": [r[2] for r in auto],
                 "Type": [r[3] for r in auto],
                 "Details": [r[4] for r in auto],
-                "Destination": [r[5] for r in auto],
+                "Customer Email": [r[5] for r in auto],
             }
         )
     else:
